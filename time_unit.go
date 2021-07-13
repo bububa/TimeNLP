@@ -9,7 +9,7 @@ import (
 	"github.com/dlclark/regexp2"
 )
 
-// 时间语句分析
+// TimeUnit 时间语句分析
 type TimeUnit struct {
 	expTime                 string
 	normalizer              *TimeNormalizer
@@ -24,6 +24,7 @@ type TimeUnit struct {
 	ts                      time.Time
 }
 
+// NewTimeUnit 新建TimeUnit
 func NewTimeUnit(expTime string, pos int, length int, normalizer *TimeNormalizer, tpCtx TimePoint) *TimeUnit {
 	ret := &TimeUnit{
 		expTime:                 expTime,
@@ -40,6 +41,7 @@ func NewTimeUnit(expTime string, pos int, length int, normalizer *TimeNormalizer
 	return ret
 }
 
+// ToResultPoint 转换为ResultPoint
 func (t TimeUnit) ToResultPoint() ResultPoint {
 	return ResultPoint{
 		Time:   t.Time(),
@@ -48,10 +50,12 @@ func (t TimeUnit) ToResultPoint() ResultPoint {
 	}
 }
 
+// Time 转换为time.Time
 func (t TimeUnit) Time() time.Time {
 	return t.ts
 }
 
+// normalization 标准化
 func (t *TimeUnit) normalization() {
 	t.normSetYear()
 	t.normSetMonth()
@@ -129,10 +133,12 @@ func (t *TimeUnit) normalization() {
 	t.ts = t.genTime()
 }
 
+// genSpan 转化为time.Duration
 func (t *TimeUnit) genSpan(days int64, second int64) time.Duration {
 	return (time.Duration(days)*24*time.Hour + time.Duration(second)*time.Second)
 }
 
+// getTime 获取time.Time
 func (t *TimeUnit) genTime() time.Time {
 	var zero time.Time
 	ret := NewTimePointFromTime(zero)
@@ -144,7 +150,7 @@ func (t *TimeUnit) genTime() time.Time {
 	return ret.ToTime(t.normalizer.timeBase.Location())
 }
 
-// 年-规范化方法--该方法识别时间表达式单元的年字段
+// normSetYear 年-规范化方法--该方法识别时间表达式单元的年字段
 func (t *TimeUnit) normSetYear() {
 	// 一位数表示的年份
 	{
@@ -182,7 +188,7 @@ func (t *TimeUnit) normSetYear() {
 	}
 }
 
-// 月-规范化方法--该方法识别时间表达式单元的月字段
+// normSetMonth 月-规范化方法--该方法识别时间表达式单元的月字段
 func (t *TimeUnit) normSetMonth() {
 	pattern := regexp2.MustCompile("((10)|(11)|(12)|([1-9]))(?=月)", 0)
 	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
@@ -192,7 +198,7 @@ func (t *TimeUnit) normSetMonth() {
 	}
 }
 
-// 日-规范化方法：该方法识别时间表达式单元的日字段
+// normSetDay 日-规范化方法：该方法识别时间表达式单元的日字段
 func (t *TimeUnit) normSetDay() {
 	pattern := regexp2.MustCompile("((?<!\\d))([0-3][0-9]|[1-9])(?=(日|号))", 0)
 	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
@@ -203,7 +209,7 @@ func (t *TimeUnit) normSetDay() {
 	}
 }
 
-// 月-日 兼容模糊写法：该方法识别时间表达式单元的月、日字段
+// normSetMonthFuzzyDay 月-日 兼容模糊写法：该方法识别时间表达式单元的月、日字段
 func (t *TimeUnit) normSetMonthFuzzyDay() {
 	pattern := regexp.MustCompile("((10)|(11)|(12)|([1-9]))(月|\\.|\\-)([0-3][0-9]|[1-9])")
 	match := pattern.FindAllString(t.expTime, -1)
@@ -221,7 +227,7 @@ func (t *TimeUnit) normSetMonthFuzzyDay() {
 	}
 }
 
-// 设置以上文时间为基准的时间偏移计算
+// normSetBaseRelated 设置以上文时间为基准的时间偏移计算
 func (t *TimeUnit) normSetBaseRelated() {
 	cur := time.Now()
 	flag := []bool{false, false, false, false}
@@ -303,7 +309,7 @@ func (t *TimeUnit) normSetBaseRelated() {
 	}
 }
 
-// 设置当前时间相关的时间表达式
+// normSetCurRelated 设置当前时间相关的时间表达式
 func (t *TimeUnit) normSetCurRelated() {
 	cur := time.Now()
 	flag := []bool{false, false, false}
@@ -487,7 +493,7 @@ func (t *TimeUnit) normSetCurRelated() {
 	}
 }
 
-// 时-规范化方法：该方法识别时间表达式单元的时字段
+// normSetHour 时-规范化方法：该方法识别时间表达式单元的时字段
 func (t *TimeUnit) normSetHour() {
 	pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9])(?=(点|时))", 0)
 	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
@@ -501,7 +507,7 @@ func (t *TimeUnit) normSetHour() {
 	}
 }
 
-// 分-规范化方法：该方法识别时间表达式单元的分字段
+// normSetMinute 分-规范化方法：该方法识别时间表达式单元的分字段
 func (t *TimeUnit) normSetMinute() {
 	{
 		pattern := regexp2.MustCompile("([0-9]+(?=分(?!钟)))|((?<=((?<!小)[点时]))[0-5]?[0-9](?!刻))", 0)
@@ -535,7 +541,7 @@ func (t *TimeUnit) normSetMinute() {
 	}
 }
 
-// 添加了省略“秒”说法的时间：如17点15分32
+// normSetSecond 添加了省略“秒”说法的时间：如17点15分32
 func (t *TimeUnit) normSetSecond() {
 	pattern := regexp2.MustCompile("([0-9]+(?=秒))|((?<=分)[0-5]?[0-9])", 0)
 	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
@@ -545,7 +551,7 @@ func (t *TimeUnit) normSetSecond() {
 	}
 }
 
-// 特殊形式的规范化方法-该方法识别特殊形式的时间表达式单元的各个字段
+// normSetSpecial 特殊形式的规范化方法-该方法识别特殊形式的时间表达式单元的各个字段
 func (t *TimeUnit) normSetSpecial() {
 	{
 		pattern := regexp2.MustCompile("(晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后)(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]", 0)
@@ -745,7 +751,7 @@ func (t *TimeUnit) normSetSpecial() {
 	}
 }
 
-// 设置时间长度相关的时间表达式
+// normSetSpanRelated 设置时间长度相关的时间表达式
 func (t *TimeUnit) normSetSpanRelated() {
 	{
 		pattern := regexp2.MustCompile("\\d+(?=个月(?![以之]?[前后]))", 0)
@@ -800,7 +806,7 @@ func (t *TimeUnit) normSetSpanRelated() {
 	}
 }
 
-// 节假日相关
+// normSetHoliday 节假日相关
 func (t *TimeUnit) normSetHoliday() {
 	pattern := regexp.MustCompile("(情人节)|(母亲节)|(青年节)|(教师节)|(中元节)|(端午)|(劳动节)|(7夕)|(建党节)|(建军节)|(初13)|(初14)|(初15)|(初12)|(初11)|(初9)|(初8)|(初7)|(初6)|(初5)|(初4)|(初3)|(初2)|(初1)|(中和节)|(圣诞)|(中秋)|(春节)|(元宵)|(航海日)|(儿童节)|(国庆)|(植树节)|(元旦)|(重阳节)|(妇女节)|(记者节)|(立春)|(雨水)|(惊蛰)|(春分)|(清明)|(谷雨)|(立夏)|(小满 )|(芒种)|(夏至)|(小暑)|(大暑)|(立秋)|(处暑)|(白露)|(秋分)|(寒露)|(霜降)|(立冬)|(小雪)|(大雪)|(冬至)|(小寒)|(大寒)")
 	match := pattern.FindAllString(t.expTime, -1)
@@ -843,7 +849,7 @@ func (t *TimeUnit) normSetHoliday() {
 	}
 }
 
-// 特殊形式的规范化方法
+// normSetTotal 特殊形式的规范化方法
 // 该方法识别特殊形式的时间表达式单元的各个字段
 func (t *TimeUnit) normSetTotal() {
 	{
@@ -942,7 +948,7 @@ func (t *TimeUnit) normSetTotal() {
 	}
 }
 
-// 该方法用于更新timeBase使之具有上下文关联性
+// modifyTimeBase 该方法用于更新timeBase使之具有上下文关联性
 func (t *TimeUnit) modifyTimeBase() {
 	if !t.normalizer.isTimeSpan {
 		if t.tp[0] >= 30 && t.tp[0] < 100 {
@@ -960,13 +966,14 @@ func (t *TimeUnit) modifyTimeBase() {
 	}
 }
 
+// SolarTermData 阳历时间点数据
 type SolorTermData struct {
 	Key   float64
 	Month int
 	Years [][]int
 }
 
-// 二十世纪和二十一世纪，24节气计算
+// china24St 二十世纪和二十一世纪，24节气计算
 // :param year: 年份
 // :param china_st: 节气
 //  :return: 节气日期（月, 日）
@@ -981,122 +988,122 @@ func (t *TimeUnit) china24St(year int, chinaSt string) []int {
 	}
 	// 二十四节气字典-- key值, 月份，(特殊年份，相差天数)...
 	solorTerms := map[string]SolorTermData{
-		"小寒": SolorTermData{
+		"小寒": {
 			Key:   stKey[0],
 			Month: 1,
 			Years: [][]int{{2019, -1}, {1982, 1}},
 		},
-		"大寒": SolorTermData{
+		"大寒": {
 			Key:   stKey[1],
 			Month: 1,
 			Years: [][]int{{2082, 1}},
 		},
-		"立春": SolorTermData{
+		"立春": {
 			Key:   stKey[2],
 			Month: 2,
 			Years: [][]int{{-2, 0}},
 		},
-		"雨水": SolorTermData{
+		"雨水": {
 			Key:   stKey[3],
 			Month: 2,
 			Years: [][]int{{2026, -1}},
 		},
-		"惊蛰": SolorTermData{
+		"惊蛰": {
 			Key:   stKey[4],
 			Month: 3,
 			Years: [][]int{{-2, 0}},
 		},
-		"春分": SolorTermData{
+		"春分": {
 			Key:   stKey[5],
 			Month: 3,
 			Years: [][]int{{2084, 1}},
 		},
-		"清明": SolorTermData{
+		"清明": {
 			Key:   stKey[6],
 			Month: 4,
 			Years: [][]int{{-2, 0}},
 		},
-		"谷雨": SolorTermData{
+		"谷雨": {
 			Key:   stKey[7],
 			Month: 4,
 			Years: [][]int{{-2, 0}},
 		},
-		"立夏": SolorTermData{
+		"立夏": {
 			Key:   stKey[8],
 			Month: 5,
 			Years: [][]int{{1911, 1}},
 		},
-		"小满": SolorTermData{
+		"小满": {
 			Key:   stKey[9],
 			Month: 5,
 			Years: [][]int{{2008, 1}},
 		},
-		"芒种": SolorTermData{
+		"芒种": {
 			Key:   stKey[10],
 			Month: 6,
 			Years: [][]int{{1902, 1}},
 		},
-		"夏至": SolorTermData{
+		"夏至": {
 			Key:   stKey[11],
 			Month: 6,
 			Years: [][]int{{-2, 0}},
 		},
-		"小暑": SolorTermData{
+		"小暑": {
 			Key:   stKey[12],
 			Month: 7,
 			Years: [][]int{{2016, 1}, {1925, 1}},
 		},
-		"大暑": SolorTermData{
+		"大暑": {
 			Key:   stKey[13],
 			Month: 7,
 			Years: [][]int{{1922, 1}},
 		},
-		"立秋": SolorTermData{
+		"立秋": {
 			Key:   stKey[14],
 			Month: 8,
 			Years: [][]int{{2002, 1}},
 		},
-		"处暑": SolorTermData{
+		"处暑": {
 			Key:   stKey[15],
 			Month: 8,
 			Years: [][]int{{-2, 0}},
 		},
-		"白露": SolorTermData{
+		"白露": {
 			Key:   stKey[16],
 			Month: 9,
 			Years: [][]int{{1927, 1}},
 		},
-		"秋分": SolorTermData{
+		"秋分": {
 			Key:   stKey[17],
 			Month: 9,
 			Years: [][]int{{-2, 0}},
 		},
-		"寒露": SolorTermData{
+		"寒露": {
 			Key:   stKey[18],
 			Month: 10,
 			Years: [][]int{{2088, 0}},
 		},
-		"霜降": SolorTermData{
+		"霜降": {
 			Key:   stKey[19],
 			Month: 10,
 			Years: [][]int{{2089, 1}},
 		},
-		"立冬": SolorTermData{
+		"立冬": {
 			Key:   stKey[20],
 			Month: 11,
 			Years: [][]int{{2089, 1}},
 		},
-		"小雪": SolorTermData{
+		"小雪": {
 			Key:   stKey[21],
 			Month: 11,
 			Years: [][]int{{1978, 0}},
 		},
-		"大雪": SolorTermData{
+		"大雪": {
 			Key:   stKey[22],
 			Month: 12,
 			Years: [][]int{{1954, 1}},
 		},
-		"冬至": SolorTermData{
+		"冬至": {
 			Key:   stKey[23],
 			Month: 12,
 			Years: [][]int{{2021, -1}, {1918, -1}},
@@ -1118,12 +1125,12 @@ func (t *TimeUnit) china24St(year int, chinaSt string) []int {
 	return []int{solorTerms[chinaSt].Month, flagDay}
 }
 
-// * 对关键字：早（包含早上/早晨/早间），上午，中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM的正确时间计算
-// * 规约：
-// * 1.中午/午间0-10点视为12-22点
-// * 2.下午/午后0-11点视为12-23点
-// * 3.晚上/傍晚/晚间/晚1-11点视为13-23点，12点视为0点
-// * 4.0-11点pm/PM视为12-23点
+// normCheckKeywor  对关键字：早（包含早上/早晨/早间），上午，中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM的正确时间计算
+// 规约：
+// 1. 中午/午间0-10点视为12-22点
+// 2. 下午/午后0-11点视为12-23点
+// 3. 晚上/傍晚/晚间/晚1-11点视为13-23点，12点视为0点
+// 4. 0-11点pm/PM视为12-23点
 func (t *TimeUnit) normCheckKeyword() {
 	if strings.Contains(t.expTime, "凌晨") {
 		t.isMorning = true
@@ -1213,6 +1220,7 @@ func (t *TimeUnit) normCheckKeyword() {
 	}
 }
 
+// preferFutureWeek 未来星期几
 func (t *TimeUnit) preferFutureWeek(week int, cur time.Time) time.Time {
 	// 确认用户选项
 	if !t.normalizer.isPreferFuture {
@@ -1229,7 +1237,7 @@ func (t *TimeUnit) preferFutureWeek(week int, cur time.Time) time.Time {
 	return cur
 }
 
-// 如果用户选项是倾向于未来时间，检查checkTimeIndex所指的时间是否是过去的时间，如果是的话，将大一级的时间设为当前时间的+1。
+// preferFuture 如果用户选项是倾向于未来时间，检查checkTimeIndex所指的时间是否是过去的时间，如果是的话，将大一级的时间设为当前时间的+1。
 // 如在晚上说“早上8点看书”，则识别为明天早上;
 // 12月31日说“3号买菜”，则识别为明年1月的3号。
 // :param checkTimeIndex: _tp.tunit时间数组的下标
@@ -1280,7 +1288,7 @@ func (t *TimeUnit) preferFuture(checkTimeIndex int) {
 	}
 }
 
-// 检查未来时间点
+// checkTime 检查未来时间点
 func (t *TimeUnit) checkTime(timePoint TimePoint) {
 	if !t.noYear {
 		return
@@ -1293,7 +1301,7 @@ func (t *TimeUnit) checkTime(timePoint TimePoint) {
 	t.noYear = false
 }
 
-// 根据上下文时间补充时间信息
+// checkContextTime 根据上下文时间补充时间信息
 func (t *TimeUnit) checkContextTime(checkTimeIndex int) {
 	if !t.isFirstTimeSolveContext {
 		return

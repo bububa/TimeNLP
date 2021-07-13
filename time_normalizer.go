@@ -13,7 +13,7 @@ import (
 	"github.com/bububa/TimeNLP/resource"
 )
 
-// 时间表达式识别的主要工作类
+// TimeNormalizer 时间表达式识别的主要工作类
 type TimeNormalizer struct {
 	isPreferFuture bool
 	isTimeSpan     bool
@@ -24,6 +24,8 @@ type TimeNormalizer struct {
 	holiLunar      map[string]string
 }
 
+// NewTimeNormalizer 新建TimeNormalizer
+// isPreferFuture: 是否倾向使用未来时间
 func NewTimeNormalizer(isPreferFuture bool) *TimeNormalizer {
 	pattern := regexp2.MustCompile(resource.Pattern, 0)
 	holiSolar := make(map[string]string)
@@ -38,7 +40,7 @@ func NewTimeNormalizer(isPreferFuture bool) *TimeNormalizer {
 	}
 }
 
-// 这里对一些不规范的表达做转换
+// filter 这里对一些不规范的表达做转换
 func (n *TimeNormalizer) filter(inputQuery string) string {
 	preHandler := &StringPreHandler{}
 	inputQuery = preHandler.NumberTranslator(inputQuery)
@@ -72,7 +74,7 @@ func (n *TimeNormalizer) filter(inputQuery string) string {
 	return inputQuery
 }
 
-// 待匹配字符串的清理空白符和语气助词以及大写数字转化的预处理
+// preHandling 待匹配字符串的清理空白符和语气助词以及大写数字转化的预处理
 func (n *TimeNormalizer) preHandling(target string) string {
 	preHandler := &StringPreHandler{}
 	rules := []string{
@@ -86,7 +88,7 @@ func (n *TimeNormalizer) preHandling(target string) string {
 	return target
 }
 
-// TimeNormalizer的构造方法，根据提供的待分析字符串和timeBase进行时间表达式提取
+// Parse 是TimeNormalizer的构造方法，根据提供的待分析字符串和timeBase进行时间表达式提取
 func (n *TimeNormalizer) Parse(target string, timeBase time.Time) (*Result, error) {
 	n.timeBase = timeBase
 	target = n.preHandling(target)
@@ -109,7 +111,7 @@ func (n *TimeNormalizer) Parse(target string, timeBase time.Time) (*Result, erro
 	return &ret, nil
 }
 
-// 有基准时间输入的时间表达式识别
+// timeExt 有基准时间输入的时间表达式识别
 // 这是时间表达式识别的主方法， 通过已经构建的正则表达式对字符串进行识别，并按照预先定义的基准时间进行规范化
 // 将所有别识别并进行规范化的时间表达式进行返回， 时间表达式通过TimeUnit类进行定义
 func (n *TimeNormalizer) timeExt(target string, timeBase time.Time) []TimeUnit {
@@ -153,6 +155,7 @@ func (n *TimeNormalizer) timeExt(target string, timeBase time.Time) []TimeUnit {
 	return res
 }
 
+// filterTimeUnits 过滤空时间点
 func (n *TimeNormalizer) filterTimeUnits(units []TimeUnit) []TimeUnit {
 	var res []TimeUnit
 	for _, tu := range units {

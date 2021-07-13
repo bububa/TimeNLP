@@ -8,9 +8,10 @@ import (
 	"github.com/dlclark/regexp2"
 )
 
+// StringPreHandler 字符串预处理
 type StringPreHandler struct{}
 
-// 该方法删除一字符串中所有匹配某一规则字串
+// DelKeyword 该方法删除一字符串中所有匹配某一规则字串
 // 可用于清理一个字符串中的空白符和语气助词
 // :param target: 待处理字符串
 // :param rules: 删除规则
@@ -20,7 +21,7 @@ func (s StringPreHandler) DelKeyword(target string, rules string) string {
 	return pattern.ReplaceAllString(target, "")
 }
 
-// 该方法可以将字符串中所有的用汉字表示的数字转化为用阿拉伯数字表示的数字
+// NumberTranslator 该方法可以将字符串中所有的用汉字表示的数字转化为用阿拉伯数字表示的数字
 // 如"这里有一千两百个人，六百零五个来自中国"可以转化为
 // "这里有1200个人，605个来自中国"
 // 此外添加支持了部分不规则表达方法
@@ -204,6 +205,7 @@ func (s StringPreHandler) NumberTranslator(target string) string {
 	return target
 }
 
+// filterStringSlice 过滤数组中的字符串
 func (s StringPreHandler) filterStringSlice(arr []string, f string) []string {
 	var ret []string
 	for _, a := range arr {
@@ -215,7 +217,7 @@ func (s StringPreHandler) filterStringSlice(arr []string, f string) []string {
 	return ret
 }
 
-// 方法numberTranslator的辅助方法，可将[零-九]正确翻译为[0-9]
+// WordToNum 方法numberTranslator的辅助方法，可将[零-九]正确翻译为[0-9]
 // :param s: 大写数字
 // :return: 对应的整形数，如果不是数字返回-1
 func (s StringPreHandler) WordToNum(str string) int64 {
