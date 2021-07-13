@@ -1,5 +1,6 @@
 package timenlp
 
+// Lunar 阴历节气结构体
 type Lunar struct {
 	IsLeap bool
 	Day    int
@@ -7,12 +8,14 @@ type Lunar struct {
 	Year   int
 }
 
+// Solar 阳历节假日结构体
 type Solar struct {
 	Day   int
 	Month int
 	Year  int
 }
 
+// NewSolarFromInt 从timestamp新建阳历Solar
 func NewSolarFromInt(g int) Solar {
 	y := int((10000*g + 14780) / 3652425)
 	ddd := g - (365*y + int(y/4) - int(y/100) + int(y/400))
@@ -31,6 +34,7 @@ func NewSolarFromInt(g int) Solar {
 	}
 }
 
+// ToInt 转换为timestamp
 func (s Solar) ToInt() int {
 	m := (s.Month + 9) % 12
 	y := s.Year
@@ -38,6 +42,7 @@ func (s Solar) ToInt() int {
 	return 365*y + int(y/4) - int(y/100) + int(y/400) + int((m*306+5)/10) + (s.Day - 1)
 }
 
+// LunarSolarConverter 阴历阳历转换结构体
 type LunarSolarConverter struct {
 	// 1888~2111年农历数据表
 	// 农历数据 每个元素的存储格式如下
@@ -53,6 +58,7 @@ type LunarSolarConverter struct {
 	Solar []int
 }
 
+// NewLunarSolarConverter 新建阴历阳历转换结构体
 func NewLunarSolarConverter() *LunarSolarConverter {
 	return &LunarSolarConverter{
 		LunarMonthDays: []int{
@@ -132,6 +138,7 @@ func NewLunarSolarConverter() *LunarSolarConverter {
 	}
 }
 
+// LunarToSolar 转换阴历到阳历
 func (l *LunarSolarConverter) LunarToSolar(lunar Lunar) Solar {
 	days := l.LunarMonthDays[lunar.Year-l.LunarMonthDays[0]]
 	leap := l.GetBigInt(days, 4, 13)
@@ -163,6 +170,7 @@ func (l *LunarSolarConverter) LunarToSolar(lunar Lunar) Solar {
 	return NewSolarFromInt(solar.ToInt() + offset - 1)
 }
 
+// GetBigInt
 func (l *LunarSolarConverter) GetBigInt(data int, length int, shift int) int {
 	return (data & (((1 << length) - 1) << shift)) >> shift
 }
