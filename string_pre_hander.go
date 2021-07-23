@@ -8,6 +8,12 @@ import (
 	"github.com/dlclark/regexp2"
 )
 
+type numberTranslateSetting struct {
+	Reg  string
+	Char string
+	Num  int64
+}
+
 // StringPreHandler 字符串预处理
 type StringPreHandler struct{}
 
@@ -33,173 +39,148 @@ func (s StringPreHandler) DelKeyword(target string, rules string) string {
 // :param target: 待转化的字符串
 // :return: 转化完毕后的字符串
 func (s StringPreHandler) NumberTranslator(target string) string {
-	{
-		pattern := regexp2.MustCompile("[一二两三四五六七八九123456789]万[一二两三四五六七八九123456789](?!(千|百|十))", 0)
-		var match *regexp2.Match
-		for {
-			if match == nil {
-				match, _ = pattern.FindStringMatch(target)
-			} else {
-				match, _ = pattern.FindNextMatch(match)
-			}
-			if match == nil {
-				break
-			}
-			matchedString := match.String()
-			parts := s.filterStringSlice(strings.Split(matchedString, "万"), "")
-			var num int64
-			if len(parts) == 2 {
-				num += s.WordToNum(parts[0])*10000 + s.WordToNum(parts[1])*1000
-			}
-			target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
-		}
+	translators := []numberTranslateSetting{
+		{
+			Reg:  "[一二两三四五六七八九123456789]万[一二两三四五六七八九123456789](?!(千|百|十))",
+			Char: "万",
+			Num:  10000,
+		},
+		{
+			Reg:  "[一二两三四五六七八九123456789]千[一二两三四五六七八九123456789](?!(百|十))",
+			Char: "千",
+			Num:  1000,
+		},
+		{
+			Reg:  "[一二两三四五六七八九123456789]百[一二两三四五六七八九123456789](?!十)",
+			Char: "百",
+			Num:  100,
+		},
+		{
+			Reg: "[零一二两三四五六七八九]",
+			Num: 1,
+		},
 	}
-	{
-		pattern := regexp2.MustCompile("[一二两三四五六七八九123456789]千[一二两三四五六七八九123456789](?!(百|十))", 0)
-		var match *regexp2.Match
-		for {
-			if match == nil {
-				match, _ = pattern.FindStringMatch(target)
-			} else {
-				match, _ = pattern.FindNextMatch(match)
-			}
-			if match == nil {
-				break
-			}
-			matchedString := match.String()
-			parts := s.filterStringSlice(strings.Split(matchedString, "千"), "")
-			var num int64
-			if len(parts) == 2 {
-				num += s.WordToNum(parts[0])*1000 + s.WordToNum(parts[1])*100
-			}
-			target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
-		}
+	for _, t := range translators {
+		target = s.translateNum(target, t)
 	}
-	{
-		pattern := regexp2.MustCompile("[一二两三四五六七八九123456789]百[一二两三四五六七八九123456789](?!十)", 0)
-		var match *regexp2.Match
-		for {
-			if match == nil {
-				match, _ = pattern.FindStringMatch(target)
-			} else {
-				match, _ = pattern.FindNextMatch(match)
-			}
-			if match == nil {
-				break
-			}
-			matchedString := match.String()
-			parts := s.filterStringSlice(strings.Split(matchedString, "百"), "")
-			var num int64
-			if len(parts) == 2 {
-				num += s.WordToNum(parts[0])*100 + s.WordToNum(parts[1])*10
-			}
-			target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
-		}
+	target = s.translateNumExp1(target)
+	target = s.translateNumExp2(target)
+	translators = []numberTranslateSetting{
+		{
+			Reg:  "0?[1-9]百[0-9]?[0-9]?",
+			Char: "百",
+			Num:  100,
+		},
+		{
+			Reg:  "0?[1-9]千[0-9]?[0-9]?[0-9]?",
+			Char: "千",
+			Num:  1000,
+		},
+		{
+			Reg:  "[0-9]+万[0-9]?[0-9]?[0-9]?[0-9]?",
+			Char: "万",
+			Num:  10000,
+		},
 	}
-	{
-		pattern := regexp.MustCompile("[零一二两三四五六七八九]")
+	for _, t := range translators {
+		target = s.translateNum2(target, t)
+	}
+	return target
+}
+
+func (s StringPreHandler) translateNum(target string, setting numberTranslateSetting) string {
+	if setting.Num == 1 {
+		pattern := regexp.MustCompile(setting.Reg)
 		if match := pattern.FindAllString(target, -1); match != nil {
 			for _, m := range match {
 				num := s.WordToNum(m)
 				target = strings.Replace(target, m, strconv.FormatInt(num, 10), 1)
 			}
 		}
+		return target
 	}
-	{
-		pattern := regexp2.MustCompile("(?<=(周|星期))[末天日]", 0)
-		var match *regexp2.Match
-		for {
-			if match == nil {
-				match, _ = pattern.FindStringMatch(target)
-			} else {
-				match, _ = pattern.FindNextMatch(match)
-			}
-			if match == nil {
-				break
-			}
-			matchedString := match.String()
-			num := s.WordToNum(matchedString)
-			target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
+	pattern := regexp2.MustCompile(setting.Reg, 0)
+	var match *regexp2.Match
+	for {
+		if match == nil {
+			match, _ = pattern.FindStringMatch(target)
+		} else {
+			match, _ = pattern.FindNextMatch(match)
 		}
-	}
-	{
-		pattern := regexp2.MustCompile("(?<!(周|星期))0?[0-9]?十[0-9]?", 0)
-		var match *regexp2.Match
-		for {
-			if match == nil {
-				match, _ = pattern.FindStringMatch(target)
-			} else {
-				match, _ = pattern.FindNextMatch(match)
-			}
-			if match == nil {
-				break
-			}
-			matchedString := match.String()
-			parts := strings.Split(matchedString, "十")
-			ten, _ := strconv.ParseInt(parts[0], 10, 64)
-			if ten == 0 {
-				ten = 1
-			}
-			unit, _ := strconv.ParseInt(parts[1], 10, 64)
-			num := ten*10 + unit
-			target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
+		if match == nil {
+			break
 		}
-	}
-	{
-		pattern := regexp.MustCompile("0?[1-9]百[0-9]?[0-9]?")
-		if match := pattern.FindAllString(target, -1); match != nil {
-			for _, m := range match {
-				parts := s.filterStringSlice(strings.Split(m, "百"), "")
-				var num int64
-				if len(parts) == 1 {
-					hundred, _ := strconv.ParseInt(parts[0], 10, 64)
-					num += hundred * 100
-				} else if len(parts) == 2 {
-					hundred, _ := strconv.ParseInt(parts[0], 10, 64)
-					num += hundred * 100
-					unit, _ := strconv.ParseInt(parts[1], 10, 64)
-					num += unit
-				}
-				target = strings.Replace(target, m, strconv.FormatInt(num, 10), 1)
-			}
+		matchedString := match.String()
+		parts := s.filterStringSlice(strings.Split(matchedString, setting.Char), "")
+		var num int64
+		if len(parts) == 2 {
+			num += s.WordToNum(parts[0])*setting.Num + s.WordToNum(parts[1])*setting.Num/10
 		}
+		target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
 	}
-	{
-		pattern := regexp.MustCompile("0?[1-9]千[0-9]?[0-9]?[0-9]?")
-		if match := pattern.FindAllString(target, -1); match != nil {
-			for _, m := range match {
-				parts := s.filterStringSlice(strings.Split(m, "千"), "")
-				var num int64
-				if len(parts) == 1 {
-					thousand, _ := strconv.ParseInt(parts[0], 10, 64)
-					num += thousand * 1000
-				} else if len(parts) == 2 {
-					thousand, _ := strconv.ParseInt(parts[0], 10, 64)
-					num += thousand * 1000
-					unit, _ := strconv.ParseInt(parts[1], 10, 64)
-					num += unit
-				}
-				target = strings.Replace(target, m, strconv.FormatInt(num, 10), 1)
-			}
+	return target
+}
+
+func (s StringPreHandler) translateNumExp1(target string) string {
+	pattern := regexp2.MustCompile("(?<=(周|星期))[末天日]", 0)
+	var match *regexp2.Match
+	for {
+		if match == nil {
+			match, _ = pattern.FindStringMatch(target)
+		} else {
+			match, _ = pattern.FindNextMatch(match)
 		}
+		if match == nil {
+			break
+		}
+		matchedString := match.String()
+		num := s.WordToNum(matchedString)
+		target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
 	}
-	{
-		pattern := regexp.MustCompile("[0-9]+万[0-9]?[0-9]?[0-9]?[0-9]?")
-		if match := pattern.FindAllString(target, -1); match != nil {
-			for _, m := range match {
-				parts := s.filterStringSlice(strings.Split(m, "万"), "")
-				var num int64
-				if len(parts) == 1 {
-					tenThousand, _ := strconv.ParseInt(parts[0], 10, 64)
-					num += tenThousand * 10000
-				} else if len(parts) == 2 {
-					tenThousand, _ := strconv.ParseInt(parts[0], 10, 64)
-					num += tenThousand * 10000
-					unit, _ := strconv.ParseInt(parts[1], 10, 64)
-					num += unit
-				}
-				target = strings.Replace(target, m, strconv.FormatInt(num, 10), 1)
+	return target
+}
+
+func (s StringPreHandler) translateNumExp2(target string) string {
+	pattern := regexp2.MustCompile("(?<!(周|星期))0?[0-9]?十[0-9]?", 0)
+	var match *regexp2.Match
+	for {
+		if match == nil {
+			match, _ = pattern.FindStringMatch(target)
+		} else {
+			match, _ = pattern.FindNextMatch(match)
+		}
+		if match == nil {
+			break
+		}
+		matchedString := match.String()
+		parts := strings.Split(matchedString, "十")
+		ten, _ := strconv.ParseInt(parts[0], 10, 64)
+		if ten == 0 {
+			ten = 1
+		}
+		unit, _ := strconv.ParseInt(parts[1], 10, 64)
+		num := ten*10 + unit
+		target = strings.Replace(target, matchedString, strconv.FormatInt(num, 10), 1)
+	}
+	return target
+}
+
+func (s StringPreHandler) translateNum2(target string, setting numberTranslateSetting) string {
+	pattern := regexp.MustCompile(setting.Reg)
+	if match := pattern.FindAllString(target, -1); match != nil {
+		for _, m := range match {
+			parts := s.filterStringSlice(strings.Split(m, setting.Char), "")
+			var num int64
+			if len(parts) == 1 {
+				mul, _ := strconv.ParseInt(parts[0], 10, 64)
+				num += mul * setting.Num
+			} else if len(parts) == 2 {
+				mul, _ := strconv.ParseInt(parts[0], 10, 64)
+				num += mul * setting.Num
+				unit, _ := strconv.ParseInt(parts[1], 10, 64)
+				num += unit
 			}
+			target = strings.Replace(target, m, strconv.FormatInt(num, 10), 1)
 		}
 	}
 	return target

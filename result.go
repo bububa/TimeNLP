@@ -6,21 +6,30 @@ import "time"
 type ResultType string
 
 const (
-	DELTA     ResultType = "delta"     // 相对时间
-	SPAN      ResultType = "span"      // 时间段
-	TIMESTAMP ResultType = "timestamp" // 时间点
+	// DELTA 相对时间
+	DELTA ResultType = "delta"
+	// SPAN 时间段
+	SPAN ResultType = "span"
+	// TIMESTAMP 时间点
+	TIMESTAMP ResultType = "timestamp"
 )
 
 // ResultPoint 返回值包含时间点
 type ResultPoint struct {
-	Time   time.Time // 时间
-	Pos    int       `json:"pos,omitempty"`    // 文字位置
-	Length int       `json:"length,omitempty"` // 文字长度
+	// Time 时间
+	Time time.Time
+	// Pos 文字位置
+	Pos int `json:"pos,omitempty"`
+	// Length 文字长度
+	Length int `json:"length,omitempty"`
 }
 
 // Result 返回值
 type Result struct {
-	NormalizedString string        `json:"normalized_string,omitempty"` // 标准化后字符串
-	Type             ResultType    `json:"type,omitempty"`              // 返回类型
-	Points           []ResultPoint `json:"points,omitempty"`            // 时间点
+	// NormalizedString 标准化后字符串
+	NormalizedString string `json:"normalized_string,omitempty"`
+	// Type 返回类型
+	Type ResultType `json:"type,omitempty"`
+	// Points 时间点
+	Points []ResultPoint `json:"points,omitempty"`
 }

@@ -89,33 +89,7 @@ func (t *TimeUnit) normalization() {
 		t.normalizer.isTimeSpan = true
 	}
 	if t.normalizer.isTimeSpan {
-		var days int64
-		if t.tp[0] > 0 {
-			days += int64(365 * t.tp[0])
-		}
-		if t.tp[1] > 0 {
-			days += int64(30 * t.tp[1])
-		}
-		if t.tp[2] > 0 {
-			days += int64(t.tp[2])
-		}
-		var tunit TimePoint
-		idx = 3
-		for idx < 6 {
-			if t.tp[idx] < 0 {
-				tunit[idx] = 0
-			} else {
-				tunit[idx] = t.tp[idx]
-			}
-			idx += 1
-		}
-		seconds := int64(tunit[3]*3600) + int64(tunit[4]*60) + int64(tunit[5])
-		if seconds == 0 && days == 0 {
-			t.normalizer.isTimeSpan = false
-			t.normalizer.invalidSpan = true
-			return
-		}
-		t.ts = t.normalizer.timeBase.Add(t.genSpan(days, seconds)).Truncate(time.Second)
+		t.normalizeTimeSpan()
 		return
 	}
 	tunitPointer := 5
@@ -131,6 +105,36 @@ func (t *TimeUnit) normalization() {
 		idx += 1
 	}
 	t.ts = t.genTime()
+}
+
+func (t *TimeUnit) normalizeTimeSpan() {
+	var days int64
+	if t.tp[0] > 0 {
+		days += int64(365 * t.tp[0])
+	}
+	if t.tp[1] > 0 {
+		days += int64(30 * t.tp[1])
+	}
+	if t.tp[2] > 0 {
+		days += int64(t.tp[2])
+	}
+	var tunit TimePoint
+	idx := 3
+	for idx < 6 {
+		if t.tp[idx] < 0 {
+			tunit[idx] = 0
+		} else {
+			tunit[idx] = t.tp[idx]
+		}
+		idx++
+	}
+	seconds := int64(tunit[3]*3600) + int64(tunit[4]*60) + int64(tunit[5])
+	if seconds == 0 && days == 0 {
+		t.normalizer.isTimeSpan = false
+		t.normalizer.invalidSpan = true
+		return
+	}
+	t.ts = t.normalizer.timeBase.Add(t.genSpan(days, seconds)).Truncate(time.Second)
 }
 
 // genSpan 转化为time.Duration
@@ -231,68 +235,25 @@ func (t *TimeUnit) normSetMonthFuzzyDay() {
 func (t *TimeUnit) normSetBaseRelated() {
 	cur := time.Now()
 	flag := []bool{false, false, false, false}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=(个)?小时[以之]?前)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[3] = true
-			hour, _ := strconv.Atoi(match.String())
-			cur = cur.Add(time.Duration(-1*hour) * time.Hour)
-		}
+	settings := []struct {
+		Reg     string
+		FlagIdx int
+		Negtive bool
+	}{
+		{Reg: "\\d+(?=(个)?小时[以之]?前)", FlagIdx: 3, Negtive: true},
+		{Reg: "\\d+(?=(个)?小时[以之]?后)", FlagIdx: 3},
+		{Reg: "\\d+(?=天[以之]?前)", FlagIdx: 2, Negtive: true},
+		{Reg: "\\d+(?=天[以之]?后)", FlagIdx: 2},
+		{Reg: "\\d+(?=(个)?月[以之]?前)", FlagIdx: 1, Negtive: true},
+		{Reg: "\\d+(?=(个)?月[以之]?后)", FlagIdx: 1},
+		{Reg: "\\d+(?=年[以之]?前)", FlagIdx: 0, Negtive: true},
+		{Reg: "\\d+(?=年[以之]?后)", FlagIdx: 0},
 	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=(个)?小时[以之]?后)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[3] = true
-			hour, _ := strconv.Atoi(match.String())
-			cur = cur.Add(time.Duration(hour) * time.Hour)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=天[以之]?前)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			days, _ := strconv.Atoi(match.String())
-			cur = cur.AddDate(0, 0, -1*days)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=天[以之]?后)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			days, _ := strconv.Atoi(match.String())
-			cur = cur.AddDate(0, 0, days)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=(个)?月[以之]?前)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[1] = true
-			month, _ := strconv.Atoi(match.String())
-			cur = cur.AddDate(0, -1*month, 0)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=(个)?月[以之]?后)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[1] = true
-			month, _ := strconv.Atoi(match.String())
-			cur = cur.AddDate(0, month, 0)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=年[以之]?前)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[0] = true
-			years, _ := strconv.Atoi(match.String())
-			cur = cur.AddDate(-1*years, 0, 0)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=年[以之]?后)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[0] = true
-			years, _ := strconv.Atoi(match.String())
-			cur = cur.AddDate(years, 0, 0)
+	var updateFlag bool
+	for _, s := range settings {
+		cur, updateFlag = t.calcNormSetBaseRelated(cur, s.Reg, s.FlagIdx, s.Negtive)
+		if updateFlag {
+			flag[s.FlagIdx] = true
 		}
 	}
 	if flag[0] || flag[1] || flag[2] || flag[3] {
@@ -309,179 +270,51 @@ func (t *TimeUnit) normSetBaseRelated() {
 	}
 }
 
+func (t *TimeUnit) calcNormSetBaseRelated(cur time.Time, reg string, flagIdx int, negtive bool) (time.Time, bool) {
+	var update bool
+	pattern := regexp2.MustCompile(reg, 0)
+	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+		update = true
+		delta, _ := strconv.Atoi(match.String())
+		if negtive {
+			delta *= -1
+		}
+		switch flagIdx {
+		case 3:
+			cur = cur.Add(time.Duration(delta) * time.Hour)
+		case 2:
+			cur = cur.AddDate(0, 0, delta)
+		case 1:
+			cur = cur.AddDate(0, delta, 0)
+		case 0:
+			cur = cur.AddDate(delta, 0, 0)
+		}
+	}
+	return cur, update
+}
+
 // normSetCurRelated 设置当前时间相关的时间表达式
 func (t *TimeUnit) normSetCurRelated() {
 	cur := time.Now()
 	flag := []bool{false, false, false}
-	if strings.Contains(t.expTime, "前年") {
-		flag[0] = true
-		cur = cur.AddDate(-2, 0, 0)
-	}
-	if strings.Contains(t.expTime, "去年") {
-		flag[0] = true
-		cur = cur.AddDate(-1, 0, 0)
-	}
-	if strings.Contains(t.expTime, "今年") {
+	var updateFlag bool
+	cur, updateFlag = t.normSetCurRelatedYear(cur)
+	if updateFlag {
 		flag[0] = true
 	}
-	if strings.Contains(t.expTime, "明年") {
-		flag[0] = true
-		cur = cur.AddDate(1, 0, 0)
+	cur, updateFlag = t.normSetCurRelatedMonth(cur)
+	if updateFlag {
+		flag[1] = true
 	}
-	if strings.Contains(t.expTime, "后年") {
-		flag[0] = true
-		cur = cur.AddDate(2, 0, 0)
-	}
-	{
-		pattern := regexp.MustCompile(`上*上(个)?月`)
-		if pattern.MatchString(t.expTime) {
-			flag[1] = true
-			cnt := strings.Count(t.expTime, "上")
-			cur = cur.AddDate(0, -1*cnt, 0)
-		}
-	}
-	{
-		pattern := regexp.MustCompile(`(本|这个)月`)
-		if pattern.MatchString(t.expTime) {
-			flag[1] = true
-		}
-	}
-	{
-		pattern := regexp.MustCompile(`下*下(个)?月`)
-		if pattern.MatchString(t.expTime) {
-			flag[1] = true
-			cnt := strings.Count(t.expTime, "下")
-			cur = cur.AddDate(0, cnt, 0)
-		}
-	}
-	{
-		pattern := regexp.MustCompile(`大*大前天`)
-		if pattern.MatchString(t.expTime) {
-			flag[2] = true
-			cnt := strings.Count(t.expTime, "大")
-			cur = cur.AddDate(0, 0, -1*cnt)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("(?<!大)前天", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			cur = cur.AddDate(0, 0, -2)
-		}
-	}
-	if strings.Contains(t.expTime, "昨") {
+	cur, updateFlag = t.normSetCurRelatedDay(cur)
+	if updateFlag {
 		flag[2] = true
-		cur = cur.AddDate(0, 0, -1)
 	}
-	{
-		pattern := regexp2.MustCompile("今(?!年)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-		}
+	cur, updateFlag = t.normSetCurRelatedWeek(cur)
+	if updateFlag {
+		flag[2] = true
 	}
-	{
-		pattern := regexp2.MustCompile("明(?!年)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			cur = cur.AddDate(0, 0, 1)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("(?<!大)后天", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			cur = cur.AddDate(0, 0, 2)
-		}
-	}
-	{
-		pattern := regexp.MustCompile(`大*大后天`)
-		if pattern.MatchString(t.expTime) {
-			flag[2] = true
-			cnt := strings.Count(t.expTime, "大")
-			cur = cur.AddDate(0, 0, -1*(2+cnt))
-		}
-	}
-	// todo 补充星期相关的预测 done
-	{
-		pattern := regexp2.MustCompile(`(?<=(上*上上(周|星期)))[1-7]?`, 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			week, err := strconv.Atoi(match.String())
-			if err != nil {
-				week = 1
-			}
-			if week == 7 {
-				week = 0
-			}
-			cnt := strings.Count(t.expTime, "上")
-			span := (week - int(cur.Weekday())) - 7*cnt
-			cur = cur.AddDate(0, 0, span)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile(`(?<=((?<!上)上(周|星期)))[1-7]?`, 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			week, err := strconv.Atoi(match.String())
-			if err != nil {
-				week = 1
-			}
-			if week == 7 {
-				week = 0
-			}
-			span := (week - int(cur.Weekday())) - 7
-			cur = cur.AddDate(0, 0, span)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile(`(?<=((?<!下)下(周|星期)))[1-7]?`, 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			week, err := strconv.Atoi(match.String())
-			if err != nil {
-				week = 1
-			}
-			if week == 7 {
-				week = 0
-			}
-			span := (week - int(cur.Weekday())) + 7
-			cur = cur.AddDate(0, 0, span)
-		}
-	}
-	// 这里对下下下周的时间转换做出了改善
-	{
-		pattern := regexp2.MustCompile(`(?<=(下*下下(周|星期)))[1-7]?`, 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			week, err := strconv.Atoi(match.String())
-			if err != nil {
-				week = 1
-			}
-			if week == 7 {
-				week = 0
-			}
-			cnt := strings.Count(t.expTime, "下")
-			span := (week - int(cur.Weekday())) + 7*cnt
-			cur = cur.AddDate(0, 0, span)
-		}
-	}
-	{
-		pattern := regexp2.MustCompile(`(?<=((?<!(上|下|个|[0-9]))(周|星期)))[1-7]`, 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			flag[2] = true
-			week, err := strconv.Atoi(match.String())
-			if err != nil {
-				week = 1
-			}
-			if week == 7 {
-				week = 0
-			}
-			span := week - int(cur.Weekday())
-			cur = cur.AddDate(0, 0, span)
-			// 处理未来时间
-			cur = t.preferFutureWeek(week, cur)
-		}
-	}
+
 	if flag[0] || flag[1] || flag[2] {
 		t.tp[0] = cur.Year()
 	}
@@ -491,6 +324,176 @@ func (t *TimeUnit) normSetCurRelated() {
 	if flag[2] {
 		t.tp[2] = cur.Day()
 	}
+}
+
+func (t *TimeUnit) normSetCurRelatedYear(cur time.Time) (time.Time, bool) {
+	var updateFlag bool
+	yearSettings := []struct {
+		Word  string
+		Years int
+	}{
+		{Word: "前年", Years: -2},
+		{Word: "去年", Years: -1},
+		{Word: "今年", Years: 0},
+		{Word: "明年", Years: 1},
+		{Word: "后年", Years: 2},
+	}
+	for _, s := range yearSettings {
+		var matched bool
+		cur, matched = t.calcNormSetCurRelatedYear(cur, s.Word, s.Years)
+		if matched {
+			updateFlag = true
+		}
+	}
+	return cur, updateFlag
+}
+
+func (t *TimeUnit) calcNormSetCurRelatedYear(cur time.Time, word string, years int) (time.Time, bool) {
+	if strings.Contains(t.expTime, word) {
+		if years != 0 {
+			cur = cur.AddDate(years, 0, 0)
+		}
+		return cur, true
+	}
+	return cur, false
+}
+
+func (t *TimeUnit) calcNormSetCurRelatedMonth(cur time.Time, reg string, char string, negtive bool) (time.Time, bool) {
+	pattern := regexp.MustCompile(reg)
+	if pattern.MatchString(t.expTime) {
+		if char != "" {
+			cnt := strings.Count(t.expTime, char)
+			if negtive {
+				cnt *= -1
+			}
+			cur = cur.AddDate(0, cnt, 0)
+		}
+		return cur, true
+	}
+	return cur, false
+}
+
+func (t *TimeUnit) normSetCurRelatedMonth(cur time.Time) (time.Time, bool) {
+	var updateFlag bool
+	monthSettings := []struct {
+		Reg     string
+		Char    string
+		Negtive bool
+	}{
+		{Reg: `上*上(个)?月`, Char: "上", Negtive: true},
+		{Reg: `(本|这个)月`},
+		{Reg: `下*下(个)?月`, Char: "下"},
+	}
+	for _, s := range monthSettings {
+		var matched bool
+		cur, matched = t.calcNormSetCurRelatedMonth(cur, s.Reg, s.Char, s.Negtive)
+		if matched {
+			updateFlag = matched
+		}
+	}
+	return cur, updateFlag
+}
+
+func (t *TimeUnit) normSetCurRelatedDay(cur time.Time) (time.Time, bool) {
+	var updateFlag bool
+	daysSettings := []struct {
+		Reg  string
+		Char string
+		Days int
+	}{
+		{Reg: `大*大前天`, Char: "大", Days: 0},
+		{Reg: "(?<!大)前天", Days: -2},
+		{Reg: "(?<!大)前天", Days: -1},
+		{Char: "昨", Days: -1},
+		{Reg: "今(?!年)"},
+		{Reg: "明(?!年)", Days: 1},
+		{Reg: "(?<!大)后天", Days: 2},
+		{Reg: `大*大后天`, Char: "大", Days: 2},
+	}
+	for _, s := range daysSettings {
+		var matched bool
+		cur, matched = t.calcNormSetCurRelatedDay(cur, s.Reg, s.Char, s.Days)
+		if matched {
+			updateFlag = true
+		}
+	}
+	return cur, updateFlag
+}
+
+func (t *TimeUnit) calcNormSetCurRelatedDay(cur time.Time, reg string, char string, days int) (time.Time, bool) {
+	if reg == "" {
+		if strings.Contains(t.expTime, char) {
+			cur = cur.AddDate(0, 0, days)
+			return cur, true
+		}
+		return cur, false
+	}
+	if char != "" {
+		pattern := regexp.MustCompile(reg)
+		if pattern.MatchString(t.expTime) {
+			cnt := strings.Count(t.expTime, char)
+			cur = cur.AddDate(0, 0, -1*(days+cnt))
+			return cur, true
+		}
+		return cur, false
+	}
+	pattern := regexp2.MustCompile(reg, 0)
+	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+		if days != 0 {
+			cur = cur.AddDate(0, 0, days)
+		}
+		return cur, true
+	}
+	return cur, false
+}
+
+func (t *TimeUnit) normSetCurRelatedWeek(cur time.Time) (time.Time, bool) {
+	var updateFlag bool
+	weekSettings := []struct {
+		Reg          string
+		Char         string
+		Days         int
+		PreferFuture bool
+	}{
+		{Reg: `(?<=(上*上上(周|星期)))[1-7]?`, Char: "上", Days: -7},
+		{Reg: `(?<=((?<!上)上(周|星期)))[1-7]?`, Days: -7},
+		{Reg: `(?<=((?<!下)下(周|星期)))[1-7]?`, Days: 7},
+		{Reg: `(?<=(下*下下(周|星期)))[1-7]?`, Char: "下", Days: 7}, // 这里对下下下周的时间转换做出了改善
+		{Reg: `(?<=((?<!(上|下|个|[0-9]))(周|星期)))[1-7]`, Days: 0, PreferFuture: true},
+	}
+	for _, s := range weekSettings {
+		var matched bool
+		cur, matched = t.calcNormSetCurRelatedWeek(cur, s.Reg, s.Char, s.Days, s.PreferFuture)
+		if matched {
+			updateFlag = true
+		}
+	}
+	return cur, updateFlag
+}
+
+func (t *TimeUnit) calcNormSetCurRelatedWeek(cur time.Time, reg string, char string, days int, preferFuture bool) (time.Time, bool) {
+	pattern := regexp2.MustCompile(reg, 0)
+	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+		week, err := strconv.Atoi(match.String())
+		if err != nil {
+			week = 1
+		}
+		if week == 7 {
+			week = 0
+		}
+		var cnt int = 1
+		if char != "" {
+			cnt = strings.Count(t.expTime, char)
+		}
+		span := (week - int(cur.Weekday())) + days*cnt
+		cur = cur.AddDate(0, 0, span)
+		if preferFuture {
+			// 处理未来时间
+			cur = t.preferFutureWeek(week, cur)
+		}
+		return cur, true
+	}
+	return cur, false
 }
 
 // normSetHour 时-规范化方法：该方法识别时间表达式单元的时字段
@@ -553,111 +556,69 @@ func (t *TimeUnit) normSetSecond() {
 
 // normSetSpecial 特殊形式的规范化方法-该方法识别特殊形式的时间表达式单元的各个字段
 func (t *TimeUnit) normSetSpecial() {
-	{
-		pattern := regexp2.MustCompile("(晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后)(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			re := regexp.MustCompile(`([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]`)
-			match := re.FindAllString(t.expTime, -1)
-			for _, m := range match {
-				parts := strings.Split(m, ":")
-				if h, err := strconv.Atoi(parts[0]); err == nil {
-					if h >= 0 && h <= 11 {
-						t.tp[3] = h + 12
-					} else {
-						t.tp[3] = h
-					}
-				}
-				if minute, err := strconv.Atoi(parts[1]); err == nil {
-					t.tp[4] = minute
-				}
-				if sec, err := strconv.Atoi(parts[2]); err == nil {
-					t.tp[5] = sec
-				}
-				t.preferFuture(3)
-				t.isAllDayTime = false
-				break
-			}
+	cases := []struct {
+		Regs   []string
+		HasSec bool
+	}{
+		{
+			Regs: []string{
+				"(晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后)(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]",
+				`([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]`,
+			},
+			HasSec: true,
+		},
+		{
+			Regs: []string{
+				"(晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后)(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]",
+				`([0-2]?[0-9]):[0-5]?[0-9]`,
+			},
+			HasSec: false,
+		},
+		{
+			Regs: []string{
+				"(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9](PM|pm|p\\.m)",
+				`([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]`,
+			},
+			HasSec: true,
+		},
+		{
+			Regs: []string{
+				"(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9](PM|pm|p.m)",
+				`([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]`,
+			},
+			HasSec: false,
+		},
+		{
+			Regs:   []string{"(?<!(周|星期|晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]"},
+			HasSec: true,
+		},
+		{
+			Regs:   []string{"(?<!(周|星期|晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后))([0-2]?[0-9]):[0-5]?[0-9]"},
+			HasSec: false,
+		},
+	}
+	for _, c := range cases {
+		if matched := t.calcNormSetSpecial(c.Regs, c.HasSec); matched {
 			return
 		}
 	}
-	{
-		pattern := regexp2.MustCompile("(晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后)(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			re := regexp.MustCompile(`([0-2]?[0-9]):[0-5]?[0-9]`)
-			match := re.FindAllString(t.expTime, -1)
-			for _, m := range match {
-				parts := strings.Split(m, ":")
-				if h, err := strconv.Atoi(parts[0]); err == nil {
-					if h >= 0 && h <= 11 {
-						t.tp[3] = h + 12
-					} else {
-						t.tp[3] = h
-					}
-				}
-				if minute, err := strconv.Atoi(parts[1]); err == nil {
-					t.tp[4] = minute
-				}
-				t.preferFuture(3)
-				t.isAllDayTime = false
-				break
-			}
-			return
-		}
+	yearSettings := []struct {
+		Reg     string
+		Spliter string
+	}{
+		{Reg: "[0-9]?[0-9]?[0-9]{2}-((10)|(11)|(12)|([1-9]))-((?<!\\d))([0-3][0-9]|[1-9])", Spliter: "-"},
+		{Reg: "[0-9]?[0-9]?[0-9]{2}/((10)|(11)|(12)|([1-9]))/((?<!\\d))([0-3][0-9]|[1-9])", Spliter: "/"},
+		{Reg: "[0-9]?[0-9]?[0-9]{2}\\.((10)|(11)|(12)|([1-9]))\\.((?<!\\d))([0-3][0-9]|[1-9])", Spliter: "."},
 	}
-	{
-		pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9](PM|pm|p\\.m)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			re := regexp.MustCompile(`([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]`)
-			match := re.FindAllString(t.expTime, -1)
-			for _, m := range match {
-				parts := strings.Split(m, ":")
-				if h, err := strconv.Atoi(parts[0]); err == nil {
-					if h >= 0 && h <= 11 {
-						t.tp[3] = h + 12
-					} else {
-						t.tp[3] = h
-					}
-				}
-				if minute, err := strconv.Atoi(parts[1]); err == nil {
-					t.tp[4] = minute
-				}
-				if sec, err := strconv.Atoi(parts[2]); err == nil {
-					t.tp[5] = sec
-				}
-				t.preferFuture(3)
-				t.isAllDayTime = false
-				break
-			}
-			return
-		}
+	for _, s := range yearSettings {
+		t.calcNormSetSpecialYear(s.Reg, s.Spliter)
 	}
-	{
-		pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9](PM|pm|p.m)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			re := regexp.MustCompile(`([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]`)
-			match := re.FindAllString(t.expTime, -1)
-			for _, m := range match {
-				parts := strings.Split(m, ":")
-				if h, err := strconv.Atoi(parts[0]); err == nil {
-					if h >= 0 && h <= 11 {
-						t.tp[3] = h + 12
-					} else {
-						t.tp[3] = h
-					}
-				}
-				if minute, err := strconv.Atoi(parts[1]); err == nil {
-					t.tp[4] = minute
-				}
-				t.preferFuture(3)
-				t.isAllDayTime = false
-				break
-			}
-			return
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("(?<!(周|星期|晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+}
+
+func (t *TimeUnit) calcNormSetSpecial(regs []string, hasSec bool) bool {
+	pattern := regexp2.MustCompile(regs[0], 0)
+	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+		if len(regs) == 1 {
 			parts := strings.Split(match.String(), ":")
 			if h, err := strconv.Atoi(parts[0]); err == nil {
 				t.tp[3] = h
@@ -665,143 +626,86 @@ func (t *TimeUnit) normSetSpecial() {
 			if minute, err := strconv.Atoi(parts[1]); err == nil {
 				t.tp[4] = minute
 			}
-			if sec, err := strconv.Atoi(parts[2]); err == nil {
-				t.tp[5] = sec
+			if hasSec {
+				if sec, err := strconv.Atoi(parts[2]); err == nil {
+					t.tp[5] = sec
+				}
 			}
 			t.preferFuture(3)
 			t.isAllDayTime = false
-			return
+			return true
 		}
-	}
-	{
-		pattern := regexp2.MustCompile("(?<!(周|星期|晚上|夜间|夜里|今晚|明晚|晚|夜里|下午|午后))([0-2]?[0-9]):[0-5]?[0-9]", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			parts := strings.Split(match.String(), ":")
+		re := regexp.MustCompile(regs[1])
+		match := re.FindAllString(t.expTime, -1)
+		for _, m := range match {
+			parts := strings.Split(m, ":")
 			if h, err := strconv.Atoi(parts[0]); err == nil {
-				t.tp[3] = h
+				if h >= 0 && h <= 11 {
+					t.tp[3] = h + 12
+				} else {
+					t.tp[3] = h
+				}
 			}
 			if minute, err := strconv.Atoi(parts[1]); err == nil {
 				t.tp[4] = minute
 			}
+			if hasSec {
+				if sec, err := strconv.Atoi(parts[2]); err == nil {
+					t.tp[5] = sec
+				}
+			}
 			t.preferFuture(3)
 			t.isAllDayTime = false
-			return
+			break
 		}
+		return true
 	}
-	// 这里是对年份表达的极好方式
-	{
-		pattern := regexp2.MustCompile("[0-9]?[0-9]?[0-9]{2}-((10)|(11)|(12)|([1-9]))-((?<!\\d))([0-3][0-9]|[1-9])", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			parts := strings.Split(match.String(), "-")
-			if year, err := strconv.Atoi(parts[0]); err == nil {
-				t.tp[0] = year
-			}
-			if month, err := strconv.Atoi(parts[1]); err == nil {
-				t.tp[1] = month
-			}
-			if day, err := strconv.Atoi(parts[2]); err == nil {
-				t.tp[2] = day
-			}
+	return false
+}
+
+func (t *TimeUnit) calcNormSetSpecialYear(reg string, spliter string) {
+	pattern := regexp2.MustCompile(reg, 0)
+	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+		parts := strings.Split(match.String(), spliter)
+		if year, err := strconv.Atoi(parts[0]); err == nil {
+			t.tp[0] = year
 		}
-	}
-	{
-		pattern := regexp2.MustCompile("[0-9]?[0-9]?[0-9]{2}/((10)|(11)|(12)|([1-9]))/((?<!\\d))([0-3][0-9]|[1-9])", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			parts := strings.Split(match.String(), "/")
-			if year, err := strconv.Atoi(parts[0]); err == nil {
-				t.tp[0] = year
-			}
-			if month, err := strconv.Atoi(parts[1]); err == nil {
-				t.tp[1] = month
-			}
-			if day, err := strconv.Atoi(parts[2]); err == nil {
-				t.tp[2] = day
-			}
+		if month, err := strconv.Atoi(parts[1]); err == nil {
+			t.tp[1] = month
 		}
-	}
-	{
-		pattern := regexp2.MustCompile("((10)|(11)|(12)|([1-9]))/((?<!\\d))([0-3][0-9]|[1-9])/[0-9]?[0-9]?[0-9]{2}", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			parts := strings.Split(match.String(), "/")
-			if year, err := strconv.Atoi(parts[0]); err == nil {
-				t.tp[0] = year
-			}
-			if month, err := strconv.Atoi(parts[1]); err == nil {
-				t.tp[1] = month
-			}
-			if day, err := strconv.Atoi(parts[2]); err == nil {
-				t.tp[2] = day
-			}
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("[0-9]?[0-9]?[0-9]{2}\\.((10)|(11)|(12)|([1-9]))\\.((?<!\\d))([0-3][0-9]|[1-9])", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			parts := strings.Split(match.String(), ".")
-			if year, err := strconv.Atoi(parts[0]); err == nil {
-				t.tp[0] = year
-			}
-			if month, err := strconv.Atoi(parts[1]); err == nil {
-				t.tp[1] = month
-			}
-			if day, err := strconv.Atoi(parts[2]); err == nil {
-				t.tp[2] = day
-			}
+		if day, err := strconv.Atoi(parts[2]); err == nil {
+			t.tp[2] = day
 		}
 	}
 }
 
 // normSetSpanRelated 设置时间长度相关的时间表达式
 func (t *TimeUnit) normSetSpanRelated() {
-	{
-		pattern := regexp2.MustCompile("\\d+(?=个月(?![以之]?[前后]))", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			t.normalizer.isTimeSpan = true
-			month, _ := strconv.Atoi(match.String())
-			t.tp[1] = month
-		}
+	cases := []struct {
+		Reg     string
+		Idx     int
+		AddWeek bool
+	}{
+		{Reg: "\\d+(?=个月(?![以之]?[前后]))", Idx: 1},
+		{Reg: "\\d+(?=天(?![以之]?[前后]))", Idx: 2},
+		{Reg: "\\d+(?=(个)?小时(?![以之]?[前后]))", Idx: 3},
+		{Reg: "\\d+(?=分钟(?![以之]?[前后]))", Idx: 4},
+		{Reg: "\\d+(?=秒钟(?![以之]?[前后]))", Idx: 5},
+		{Reg: "\\d+(?=(个)?(周|星期|礼拜)(?![以之]?[前后]))", Idx: 2, AddWeek: true},
 	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=天(?![以之]?[前后]))", 0)
+	for _, c := range cases {
+		pattern := regexp2.MustCompile(c.Reg, 0)
 		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
 			t.normalizer.isTimeSpan = true
-			day, _ := strconv.Atoi(match.String())
-			t.tp[2] = day
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=(个)?小时(?![以之]?[前后]))", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			t.normalizer.isTimeSpan = true
-			h, _ := strconv.Atoi(match.String())
-			t.tp[3] = h
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=分钟(?![以之]?[前后]))", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			t.normalizer.isTimeSpan = true
-			minute, _ := strconv.Atoi(match.String())
-			t.tp[4] = minute
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=秒钟(?![以之]?[前后]))", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			t.normalizer.isTimeSpan = true
-			second, _ := strconv.Atoi(match.String())
-			t.tp[5] = second
-		}
-	}
-	{
-		pattern := regexp2.MustCompile("\\d+(?=(个)?(周|星期|礼拜)(?![以之]?[前后]))", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			t.normalizer.isTimeSpan = true
-			week, _ := strconv.Atoi(match.String())
-			if t.tp[2] == -1 {
-				t.tp[2] = 0
+			value, _ := strconv.Atoi(match.String())
+			if c.AddWeek {
+				if t.tp[2] == -1 {
+					t.tp[2] = 0
+				}
+				t.tp[2] += value * 7
+			} else {
+				t.tp[c.Idx] = value
 			}
-			t.tp[2] += week * 7
 		}
 	}
 }
@@ -852,95 +756,77 @@ func (t *TimeUnit) normSetHoliday() {
 // normSetTotal 特殊形式的规范化方法
 // 该方法识别特殊形式的时间表达式单元的各个字段
 func (t *TimeUnit) normSetTotal() {
-	{
-		pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]", 0)
+	t.calcNormSetTotalTime()
+	t.calcNormSetTotalDaytime()
+	t.calcNormSetTotalDay()
+}
+
+func (t *TimeUnit) calcNormSetTotalTime() {
+	pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]:[0-5]?[0-9]", 0)
+	if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
+		arr := strings.Split(match.String(), ":")
+		t.tp[3], _ = strconv.Atoi(arr[0])
+		t.tp[4], _ = strconv.Atoi(arr[1])
+		t.tp[5], _ = strconv.Atoi(arr[2])
+		// 处理倾向于未来时间的情况
+		t.preferFuture(3)
+		t.isAllDayTime = false
+	} else {
+		pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]", 0)
 		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
 			arr := strings.Split(match.String(), ":")
 			t.tp[3], _ = strconv.Atoi(arr[0])
 			t.tp[4], _ = strconv.Atoi(arr[1])
-			t.tp[5], _ = strconv.Atoi(arr[2])
-			// 处理倾向于未来时间的情况
-			t.preferFuture(3)
-			t.isAllDayTime = false
-		} else {
-			pattern := regexp2.MustCompile("(?<!(周|星期))([0-2]?[0-9]):[0-5]?[0-9]", 0)
-			if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-				arr := strings.Split(match.String(), ":")
-				t.tp[3], _ = strconv.Atoi(arr[0])
-				t.tp[4], _ = strconv.Atoi(arr[1])
-				// 处理倾向于未来时间的情况
-				t.preferFuture(3)
-				t.isAllDayTime = false
-			}
-		}
-	}
-	// 增加了:固定形式时间表达式的
-	// 中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM
-	// 的正确时间计算，规约同上
-	{
-		pattern := regexp2.MustCompile("(中午)|(午间)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			if t.tp[3] >= 0 && t.tp[3] <= 10 {
-				t.tp[3] += 12
-			} else if t.tp[3] == -1 {
-				t.tp[3] = int(NOON)
-			}
 			// 处理倾向于未来时间的情况
 			t.preferFuture(3)
 			t.isAllDayTime = false
 		}
 	}
-	{
-		pattern := regexp2.MustCompile("(下午)|(午后)|(pm)|(PM)", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			if t.tp[3] >= 0 && t.tp[3] <= 11 {
-				t.tp[3] += 12
-			} else if t.tp[3] == -1 {
-				t.tp[3] = int(AFTERNOON)
-			}
-			// 处理倾向于未来时间的情况
-			t.preferFuture(3)
-			t.isAllDayTime = false
-		}
+}
+
+// calcNormSetTotalDaytime 增加了:固定形式时间表达式的
+// 中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM
+// 的正确时间计算，规约同上
+func (t *TimeUnit) calcNormSetTotalDaytime() {
+	cases := []struct {
+		Reg   string
+		Point RangeTimeEnum
+	}{
+		{Reg: "(中午)|(午间)", Point: NOON},
+		{Reg: "(下午)|(午后)|(pm)|(PM)", Point: AFTERNOON},
+		{Reg: "晚", Point: NIGHT},
 	}
-	{
-		pattern := regexp2.MustCompile("晚", 0)
+	for _, c := range cases {
+		endTime := 11
+		if c.Point == NOON {
+			endTime = 10
+		}
+		pattern := regexp2.MustCompile(c.Reg, 0)
 		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			if t.tp[3] >= 0 && t.tp[3] <= 11 {
+			if t.tp[3] >= 0 && t.tp[3] <= endTime {
 				t.tp[3] += 12
-			} else if t.tp[3] == 12 {
+			} else if c.Point == NIGHT && t.tp[3] == 12 {
 				t.tp[3] = 0
 			} else if t.tp[3] == -1 {
-				t.tp[3] = int(NIGHT)
+				t.tp[3] = int(c.Point)
 			}
 			// 处理倾向于未来时间的情况
 			t.preferFuture(3)
 			t.isAllDayTime = false
 		}
 	}
-	{
-		pattern := regexp2.MustCompile("[0-9]?[0-9]?[0-9]{2}-((10)|(11)|(12)|([1-9]))-((?<!\\d))([0-3][0-9]|[1-9])", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			arr := strings.Split(match.String(), "-")
-			t.tp[0], _ = strconv.Atoi(arr[0])
-			t.tp[1], _ = strconv.Atoi(arr[1])
-			t.tp[2], _ = strconv.Atoi(arr[2])
-		}
+}
+
+func (t *TimeUnit) calcNormSetTotalDay() {
+	cases := [][]string{
+		{"[0-9]?[0-9]?[0-9]{2}-((10)|(11)|(12)|([1-9]))-((?<!\\d))([0-3][0-9]|[1-9])", "-"},
+		{"((10)|(11)|(12)|([1-9]))/((?<!\\d))([0-3][0-9]|[1-9])/[0-9]?[0-9]?[0-9]{2}", "/"},
+		{"[0-9]?[0-9]?[0-9]{2}\\.((10)|(11)|(12)|([1-9]))\\.((?<!\\d))([0-3][0-9]|[1-9])", "/"}, // 增加了:固定形式时间表达式 年.月.日 的正确识别
 	}
-	{
-		pattern := regexp2.MustCompile("((10)|(11)|(12)|([1-9]))/((?<!\\d))([0-3][0-9]|[1-9])/[0-9]?[0-9]?[0-9]{2}", 0)
+	for _, c := range cases {
+		pattern := regexp2.MustCompile(c[0], 0)
 		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			arr := strings.Split(match.String(), "/")
-			t.tp[0], _ = strconv.Atoi(arr[0])
-			t.tp[1], _ = strconv.Atoi(arr[1])
-			t.tp[2], _ = strconv.Atoi(arr[2])
-		}
-	}
-	// 增加了:固定形式时间表达式 年.月.日 的正确识别
-	{
-		pattern := regexp2.MustCompile("[0-9]?[0-9]?[0-9]{2}\\.((10)|(11)|(12)|([1-9]))\\.((?<!\\d))([0-3][0-9]|[1-9])", 0)
-		if match, _ := pattern.FindStringMatch(t.expTime); match != nil {
-			arr := strings.Split(match.String(), "/")
+			arr := strings.Split(match.String(), c[1])
 			t.tp[0], _ = strconv.Atoi(arr[0])
 			t.tp[1], _ = strconv.Atoi(arr[1])
 			t.tp[2], _ = strconv.Atoi(arr[2])
@@ -967,9 +853,12 @@ func (t *TimeUnit) modifyTimeBase() {
 }
 
 // SolarTermData 阳历时间点数据
-type SolorTermData struct {
-	Key   float64
+type SolarTermData struct {
+	// Key 索引值
+	Key float64
+	// Month 月份
 	Month int
+	// Years 年份
 	Years [][]int
 }
 
@@ -987,7 +876,7 @@ func (t *TimeUnit) china24St(year int, chinaSt string) []int {
 		stKey = []float64{5.4055, 20.12, 3.87, 18.73, 5.63, 20.646, 4.81, 20.1, 5.52, 21.04, 5.678, 21.37, 7.108, 22.83, 7.5, 23.13, 7.646, 23.042, 8.318, 23.438, 7.438, 22.36, 7.18, 21.94}
 	}
 	// 二十四节气字典-- key值, 月份，(特殊年份，相差天数)...
-	solorTerms := map[string]SolorTermData{
+	solarTerms := map[string]SolarTermData{
 		"小寒": {
 			Key:   stKey[0],
 			Month: 1,
@@ -1111,18 +1000,18 @@ func (t *TimeUnit) china24St(year int, chinaSt string) []int {
 	}
 	var flagDay int
 	if chinaSt == "小寒" || chinaSt == "大寒" || chinaSt == "立春" || chinaSt == "雨水" {
-		flagDay = int(float64(year%100)*0.2422+solorTerms[chinaSt].Key) - int((float64(year%100)-1)/4)
+		flagDay = int(float64(year%100)*0.2422+solarTerms[chinaSt].Key) - int((float64(year%100)-1)/4)
 	} else {
-		flagDay = int(float64(year%100)*0.2422+solorTerms[chinaSt].Key) - int(float64(year%100)/4)
+		flagDay = int(float64(year%100)*0.2422+solarTerms[chinaSt].Key) - int(float64(year%100)/4)
 	}
 	// 特殊年份处理
-	for _, spec := range solorTerms[chinaSt].Years {
+	for _, spec := range solarTerms[chinaSt].Years {
 		if spec[0] == year {
 			flagDay += spec[1]
 			break
 		}
 	}
-	return []int{solorTerms[chinaSt].Month, flagDay}
+	return []int{solarTerms[chinaSt].Month, flagDay}
 }
 
 // normCheckKeywor  对关键字：早（包含早上/早晨/早间），上午，中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM的正确时间计算
@@ -1132,92 +1021,68 @@ func (t *TimeUnit) china24St(year int, chinaSt string) []int {
 // 3. 晚上/傍晚/晚间/晚1-11点视为13-23点，12点视为0点
 // 4. 0-11点pm/PM视为12-23点
 func (t *TimeUnit) normCheckKeyword() {
-	if strings.Contains(t.expTime, "凌晨") {
+	cases := []struct {
+		Reg   string
+		Point RangeTimeEnum
+	}{
+		{Reg: "凌晨", Point: DAY_BREAK},
+		{Reg: `早上|早晨|早间|晨间|今早|明早|早|清晨`, Point: EARLY_MORNING},
+		{Reg: "上午", Point: MORNING},
+		{Reg: `(中午)|(午间)|白天`, Point: NOON},
+		{Reg: `(下午)|(午后)|(pm)|(PM)`, Point: AFTERNOON},
+		{Reg: `晚上|夜间|夜里|今晚|明晚|晚|夜里`, Point: LATE_NIGHT},
+	}
+	for _, c := range cases {
+		t.calcNormCheckKeyword(c.Reg, c.Point)
+	}
+}
+
+func (t *TimeUnit) calcNormCheckKeyword(reg string, timepoint RangeTimeEnum) {
+	var matched bool
+	if timepoint == DAY_BREAK || timepoint == MORNING {
+		matched = strings.Contains(t.expTime, reg)
+	} else {
+		pattern := regexp.MustCompile(reg)
+		matched = pattern.MatchString(t.expTime)
+	}
+	if !matched {
+		return
+	}
+	if timepoint == DAY_BREAK || timepoint == EARLY_MORNING || timepoint == MORNING || timepoint == NOON {
 		t.isMorning = true
 		if t.tp[3] == -1 {
 			// 增加对没有明确时间点，只写了“凌晨”这种情况的处理
-			t.tp[3] = int(DAY_BREAK)
+			t.tp[3] = int(timepoint)
 		} else if t.tp[3] > 12 && t.tp[3] <= 23 {
 			t.tp[3] -= 12
 		} else if t.tp[3] == 0 {
 			t.tp[3] = 12
 		}
-		// 处理倾向于未来时间的情况
-		t.preferFuture(3)
-		t.isAllDayTime = false
-	}
-	{
-		pattern := regexp.MustCompile(`早上|早晨|早间|晨间|今早|明早|早|清晨`)
-		if pattern.MatchString(t.expTime) {
-			t.isMorning = true
-			if t.tp[3] == -1 {
-				// 增加对没有明确时间点，只写了“早上/早晨/早间”这种情况的处理
-				t.tp[3] = int(EARLY_MORNING)
-			} else if t.tp[3] > 12 && t.tp[3] <= 23 {
-				t.tp[3] -= 12
-			} else if t.tp[3] == 0 {
-				t.tp[3] = 12
-			}
-			t.preferFuture(3)
-			t.isAllDayTime = false
-		}
-	}
-	if strings.Contains(t.expTime, "上午") {
+	} else if timepoint == NOON {
 		t.isMorning = true
-		if t.tp[3] == -1 {
-			// 增加对没有明确时间点，只写了“上午”这种情况的处理
-			t.tp[3] = int(MORNING)
-		} else if t.tp[3] > 12 && t.tp[3] <= 23 {
-			t.tp[3] -= 12
-		} else if t.tp[3] == 0 {
-			t.tp[3] = 12
+		if t.tp[3] >= 0 && t.tp[3] <= 10 {
+			t.tp[3] += 12
+		} else if t.tp[3] == -1 {
+			// 增加对没有明确时间点，只写了“中午/午间”这种情况的处理
+			t.tp[3] = int(NOON)
 		}
-		// 处理倾向于未来时间的情况
-		t.preferFuture(3)
-		t.isAllDayTime = false
-	}
-	{
-		pattern := regexp.MustCompile(`(中午)|(午间)|白天`)
-		if pattern.MatchString(t.expTime) {
-			t.isMorning = true
-			if t.tp[3] >= 0 && t.tp[3] <= 10 {
-				t.tp[3] += 12
-			} else if t.tp[3] == -1 {
-				// 增加对没有明确时间点，只写了“中午/午间”这种情况的处理
-				t.tp[3] = int(NOON)
-			}
-			t.preferFuture(3)
-			t.isAllDayTime = false
+	} else {
+		pattern := regexp.MustCompile(reg)
+		matched = pattern.MatchString(t.expTime)
+		if !matched {
+			return
+		}
+		if t.tp[3] >= 0 && t.tp[3] <= 11 {
+			t.tp[3] += 12
+		} else if timepoint == LATE_NIGHT && t.tp[3] == 12 {
+			t.tp[3] = 0
+		} else if t.tp[3] == -1 {
+			// 增加对没有明确时间点，只写了“中午/午间”这种情况的处理
+			t.tp[3] = int(timepoint)
 		}
 	}
-	{
-		pattern := regexp.MustCompile(`(下午)|(午后)|(pm)|(PM)`)
-		if pattern.MatchString(t.expTime) {
-			if t.tp[3] >= 0 && t.tp[3] <= 11 {
-				t.tp[3] += 12
-			} else if t.tp[3] == -1 {
-				// 增加对没有明确时间点，只写了“中午/午间”这种情况的处理
-				t.tp[3] = int(AFTERNOON)
-			}
-			t.preferFuture(3)
-			t.isAllDayTime = false
-		}
-	}
-	{
-		pattern := regexp.MustCompile(`晚上|夜间|夜里|今晚|明晚|晚|夜里`)
-		if pattern.MatchString(t.expTime) {
-			if t.tp[3] >= 0 && t.tp[3] <= 11 {
-				t.tp[3] += 12
-			} else if t.tp[3] == 12 {
-				t.tp[3] = 0
-			} else if t.tp[3] == -1 {
-				// 增加对没有明确时间点，只写了“中午/午间”这种情况的处理
-				t.tp[3] = int(LATE_NIGHT)
-			}
-			t.preferFuture(3)
-			t.isAllDayTime = false
-		}
-	}
+	t.preferFuture(3)
+	t.isAllDayTime = false
 }
 
 // preferFutureWeek 未来星期几

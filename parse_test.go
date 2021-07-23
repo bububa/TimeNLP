@@ -418,7 +418,7 @@ func TestThisMondayToNextMonday(t *testing.T) {
 
 // TestTimeSpanContext 测试时间段上下文
 func TestTimeSpanContext(t *testing.T) {
-	normalizer := NewTimeNormalizer(false)
+	normalizer := NewTimeNormalizer(true)
 	ts := timeBase.AddDate(0, 0, int(7+4-timeBase.Weekday()))
 	if timeBase.Weekday() <= time.Thursday {
 		ts = timeBase.AddDate(0, 0, int(4-timeBase.Weekday()))

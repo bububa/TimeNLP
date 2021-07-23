@@ -6,7 +6,7 @@
 [![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/bububa/TimeNLP.svg)](https://github.com/bububa/TimeNLP)
 [![GoReportCard](https://goreportcard.com/badge/github.com/bububa/TimeNLP)](https://goreportcard.com/report/github.com/bububa/TimeNLP)
 [![GitHub license](https://img.shields.io/github/license/bububa/TimeNLP.svg)](https://github.com/bububa/TimeNLP/blob/master/LICENSE)
-[![GitHub release](https://img.shields.io/github/release/bububa/TimeNLP.svg)](https://GitHub.com/bububa/TimeNLP/releases/) 
+[![GitHub release](https://img.shields.io/github/release/bububa/TimeNLP.svg)](https://gitHub.com/bububa/TimeNLP/releases/) 
 
 ## 使用
 go get -u github.com/bububa/TimeNLP

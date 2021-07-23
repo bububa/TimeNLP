@@ -170,7 +170,7 @@ func (l *LunarSolarConverter) LunarToSolar(lunar Lunar) Solar {
 	return NewSolarFromInt(solar.ToInt() + offset - 1)
 }
 
-// GetBigInt
+// GetBigInt lunar to int
 func (l *LunarSolarConverter) GetBigInt(data int, length int, shift int) int {
 	return (data & (((1 << length) - 1) << shift)) >> shift
 }

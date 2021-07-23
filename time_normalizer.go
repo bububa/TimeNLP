@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
-
-	"github.com/bububa/TimeNLP/resource"
 )
 
 // TimeNormalizer 时间表达式识别的主要工作类
@@ -27,11 +25,11 @@ type TimeNormalizer struct {
 // NewTimeNormalizer 新建TimeNormalizer
 // isPreferFuture: 是否倾向使用未来时间
 func NewTimeNormalizer(isPreferFuture bool) *TimeNormalizer {
-	pattern := regexp2.MustCompile(resource.Pattern, 0)
+	pattern := regexp2.MustCompile(embedPattern, 0)
 	holiSolar := make(map[string]string)
 	holiLunar := make(map[string]string)
-	json.Unmarshal(resource.HoliSolar, &holiSolar)
-	json.Unmarshal(resource.HoliLunar, &holiLunar)
+	json.Unmarshal(embedHoliSolar, &holiSolar)
+	json.Unmarshal(embedHoliLunar, &holiLunar)
 	return &TimeNormalizer{
 		isPreferFuture: isPreferFuture,
 		pattern:        pattern,
