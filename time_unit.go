@@ -1014,7 +1014,7 @@ func (t *TimeUnit) china24St(year int, chinaSt string) []int {
 	return []int{solarTerms[chinaSt].Month, flagDay}
 }
 
-// normCheckKeywor  对关键字：早（包含早上/早晨/早间），上午，中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM的正确时间计算
+// normCheckKeyword  对关键字：早（包含早上/早晨/早间），上午，中午,午间,下午,午后,晚上,傍晚,晚间,晚,pm,PM的正确时间计算
 // 规约：
 // 1. 中午/午间0-10点视为12-22点
 // 2. 下午/午后0-11点视为12-23点
@@ -1048,7 +1048,7 @@ func (t *TimeUnit) calcNormCheckKeyword(reg string, timepoint RangeTimeEnum) {
 	if !matched {
 		return
 	}
-	if timepoint == DAY_BREAK || timepoint == EARLY_MORNING || timepoint == MORNING || timepoint == NOON {
+	if timepoint == DAY_BREAK || timepoint == EARLY_MORNING || timepoint == MORNING {
 		t.isMorning = true
 		if t.tp[3] == -1 {
 			// 增加对没有明确时间点，只写了“凌晨”这种情况的处理
