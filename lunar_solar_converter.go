@@ -17,16 +17,16 @@ type Solar struct {
 
 // NewSolarFromInt 从timestamp新建阳历Solar
 func NewSolarFromInt(g int) Solar {
-	y := int((10000*g + 14780) / 3652425)
-	ddd := g - (365*y + int(y/4) - int(y/100) + int(y/400))
+	y := (10000*g + 14780) / 3652425
+	ddd := g - (365*y + y/4 - y/100 + y/400)
 	if ddd < 0 {
 		y -= 1
-		ddd = g - (365*y + int(y/4) - int(y/100) + int(y/400))
+		ddd = g - (365*y + y/4 - y/100 + y/400)
 	}
-	mi := int((100*ddd + 52) / 3060)
+	mi := (100*ddd + 52) / 3060
 	mm := (mi+2)%12 + 1
-	y += int((mi + 2) / 12)
-	dd := ddd - int((mi*306+5)/10) + 1
+	y += (mi + 2) / 12
+	dd := ddd - (mi*306+5)/10 + 1
 	return Solar{
 		Year:  y,
 		Month: mm,
@@ -38,8 +38,8 @@ func NewSolarFromInt(g int) Solar {
 func (s Solar) ToInt() int {
 	m := (s.Month + 9) % 12
 	y := s.Year
-	y -= int(m / 10)
-	return 365*y + int(y/4) - int(y/100) + int(y/400) + int((m*306+5)/10) + (s.Day - 1)
+	y -= (m / 10)
+	return 365*y + y/4 - y/100 + y/400 + (m*306+5)/10 + (s.Day - 1)
 }
 
 // LunarSolarConverter 阴历阳历转换结构体
@@ -152,13 +152,14 @@ func (l *LunarSolarConverter) LunarToSolar(lunar Lunar) Solar {
 		}
 	}
 	var idx int
-	for idx <= loopEnd {
+	for idx < loopEnd {
 		v := l.GetBigInt(days, 1, 12-idx)
 		if v == 1 {
 			offset += 30
 		} else {
 			offset += 29
 		}
+		idx++
 	}
 	offset += lunar.Day
 	solarTmp := l.Solar[lunar.Year-l.Solar[0]]

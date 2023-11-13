@@ -184,27 +184,27 @@ func TestLooseTime(t *testing.T) {
 // TestSeason 测试节气
 func TestSeason(t *testing.T) {
 	normalizer := NewTimeNormalizer(true)
-	target := "今年春分"
-	t.Log(target)
+	targets := []string{"今年春分", "大年初一", "明年初一"}
 	expectType := TIMESTAMP
 	expectPoints := []time.Time{
-		time.Date(timeBase.Year(), 3, 20, 0, 0, 0, 0, loc),
+		time.Date(timeBase.Year(), 3, 21, 0, 0, 0, 0, loc),
+		time.Date(timeBase.Year(), 1, 22, 0, 0, 0, 0, loc),
+		time.Date(timeBase.Year()+1, 2, 10, 0, 0, 0, 0, loc),
 	}
-	ret, err := normalizer.Parse(target, timeBase)
-	if ret != nil {
-		t.Log(ret.NormalizedString)
-	}
-	if err != nil {
-		t.Error(err)
-	} else if ret.Type != expectType {
-		t.Errorf("expect: %s, got: %s", expectType, ret.Type)
-	} else if len(ret.Points) != len(expectPoints) {
-		t.Errorf("expect: %d points, result: %d points", len(expectPoints), len(ret.Points))
-	} else {
-		for idx, v := range ret.Points {
-			if !v.Time.Equal(expectPoints[idx]) {
-				t.Errorf("expect: %v, got: %v", expectPoints[idx], v)
-			}
+	for idx, target := range targets {
+		t.Log(target)
+		ret, err := normalizer.Parse(target, timeBase)
+		if ret != nil {
+			t.Log(ret.NormalizedString)
+		}
+		if err != nil {
+			t.Error(err)
+		} else if ret.Type != expectType {
+			t.Errorf("expect: %s, got: %s", expectType, ret.Type)
+		} else if len(ret.Points) != 1 {
+			t.Errorf("expect: 1 points, result: %d points", len(ret.Points))
+		} else if !ret.Points[0].Time.Equal(expectPoints[idx]) {
+			t.Errorf("expect: %v, got: %v", expectPoints[idx], ret.Points[0])
 		}
 	}
 }

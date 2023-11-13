@@ -89,6 +89,7 @@ func (n *TimeNormalizer) preHandling(target string) string {
 // Parse 是TimeNormalizer的构造方法，根据提供的待分析字符串和timeBase进行时间表达式提取
 func (n *TimeNormalizer) Parse(target string, timeBase time.Time) (*Result, error) {
 	n.timeBase = timeBase
+	target = n.filter(target)
 	target = n.preHandling(target)
 	timeUnits := n.timeExt(target, timeBase)
 	ret := Result{
