@@ -56,7 +56,7 @@ func (n *TimeNormalizer) filter(inputQuery string) string {
 		}
 	}
 	if !strings.Contains(inputQuery, "月") && !strings.Contains(inputQuery, "个半") {
-		inputQuery = strings.Replace(inputQuery, "个", "", -1)
+		inputQuery = strings.ReplaceAll(inputQuery, "个", "")
 	}
 	replaces := [][]string{
 		{"中旬", "15号"},
@@ -67,7 +67,7 @@ func (n *TimeNormalizer) filter(inputQuery string) string {
 		{"：", ":"},
 	}
 	for _, rpl := range replaces {
-		inputQuery = strings.Replace(inputQuery, rpl[0], rpl[1], -1)
+		inputQuery = strings.ReplaceAll(inputQuery, rpl[0], rpl[1])
 	}
 	return inputQuery
 }
@@ -96,7 +96,7 @@ func (n *TimeNormalizer) Parse(target string, timeBase time.Time) (*Result, erro
 		NormalizedString: target,
 	}
 	if len(timeUnits) == 0 {
-		return nil, errors.New("no time pattern could be extracted.")
+		return nil, errors.New("no time pattern could be extracted")
 	} else if n.isTimeSpan && !n.invalidSpan {
 		ret.Type = DELTA
 	} else if len(timeUnits) == 1 {
@@ -115,9 +115,9 @@ func (n *TimeNormalizer) Parse(target string, timeBase time.Time) (*Result, erro
 // 将所有别识别并进行规范化的时间表达式进行返回， 时间表达式通过TimeUnit类进行定义
 func (n *TimeNormalizer) timeExt(target string, timeBase time.Time) []TimeUnit {
 	var (
-		startLine int = -1
-		endLine   int = -1
-		rPointer  int = 0 // 计数器，记录当前识别到哪一个字符串了
+		startLine = -1
+		endLine   = -1
+		rPointer  = 0 // 计数器，记录当前识别到哪一个字符串了
 		temp      []string
 		pos       []int
 		length    []int
