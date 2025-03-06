@@ -187,9 +187,9 @@ func TestSeason(t *testing.T) {
 	targets := []string{"今年春分", "大年初一", "明年初一"}
 	expectType := TIMESTAMP
 	expectPoints := []time.Time{
-		time.Date(timeBase.Year(), 3, 21, 0, 0, 0, 0, loc),
-		time.Date(timeBase.Year(), 1, 22, 0, 0, 0, 0, loc),
-		time.Date(timeBase.Year()+1, 2, 10, 0, 0, 0, 0, loc),
+		time.Date(timeBase.Year(), 3, 20, 0, 0, 0, 0, loc),
+		time.Date(timeBase.Year(), 1, 29, 0, 0, 0, 0, loc),
+		time.Date(timeBase.Year()+1, 2, 17, 0, 0, 0, 0, loc),
 	}
 	for idx, target := range targets {
 		t.Log(target)
@@ -582,6 +582,62 @@ func TestLooseDate(t *testing.T) {
 	expectType := TIMESTAMP
 	expectPoints := []time.Time{
 		time.Date(timeBase.Year(), 6, 3, 0, 0, 0, 0, loc),
+	}
+	ret, err := normalizer.Parse(target, timeBase)
+	if ret != nil {
+		t.Log(ret.NormalizedString)
+	}
+	if err != nil {
+		t.Error(err)
+	} else if ret.Type != expectType {
+		t.Errorf("expect: %s, got: %s", expectType, ret.Type)
+	} else if len(ret.Points) != len(expectPoints) {
+		t.Errorf("expect: %d points, result: %d points", len(expectPoints), len(ret.Points))
+	} else {
+		for idx, v := range ret.Points {
+			if !v.Time.Equal(expectPoints[idx]) {
+				t.Errorf("expect: %v, got: %v", expectPoints[idx], v)
+			}
+		}
+	}
+}
+
+// TestWeeks 解析某年某月的第n周
+func TestWeeks(t *testing.T) {
+	normalizer := NewTimeNormalizer(false)
+	target := "Hi，all.2025年11月第三周"
+	t.Log(target)
+	expectType := TIMESTAMP
+	expectPoints := []time.Time{
+		time.Date(2025, 11, 15, 0, 0, 0, 0, loc),
+	}
+	ret, err := normalizer.Parse(target, timeBase)
+	if ret != nil {
+		t.Log(ret.NormalizedString)
+	}
+	if err != nil {
+		t.Error(err)
+	} else if ret.Type != expectType {
+		t.Errorf("expect: %s, got: %s", expectType, ret.Type)
+	} else if len(ret.Points) != len(expectPoints) {
+		t.Errorf("expect: %d points, result: %d points", len(expectPoints), len(ret.Points))
+	} else {
+		for idx, v := range ret.Points {
+			if !v.Time.Equal(expectPoints[idx]) {
+				t.Errorf("expect: %v, got: %v", expectPoints[idx], v)
+			}
+		}
+	}
+}
+
+// TestSeasons 解析某年第n季
+func TestSeasons(t *testing.T) {
+	normalizer := NewTimeNormalizer(true)
+	target := "Hi，all.2025年第二季"
+	t.Log(target)
+	expectType := TIMESTAMP
+	expectPoints := []time.Time{
+		time.Date(2025, 4, 1, 0, 0, 0, 0, loc),
 	}
 	ret, err := normalizer.Parse(target, timeBase)
 	if ret != nil {

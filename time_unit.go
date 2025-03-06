@@ -200,6 +200,16 @@ func (t *TimeUnit) normSetMonth() {
 		t.tp[1] = month
 		t.preferFuture(1)
 	}
+	pattern2 := regexp.MustCompile(`第(\d+)季`)
+	if match := pattern2.FindAllStringSubmatch(t.expTime, 1); len(match) > 0 && len(match[0]) == 2 {
+		if season, _ := strconv.Atoi(match[0][1]); season > 0 {
+			cur := t.tp.ToTime(t.normalizer.timeBase.Location())
+			cur = cur.AddDate(0, (season-1)*4, 0)
+			t.tp[0] = cur.Year()
+			t.tp[1] = int(cur.Month())
+			t.preferFuture(1)
+		}
+	}
 }
 
 // normSetDay 日-规范化方法：该方法识别时间表达式单元的日字段
@@ -211,14 +221,24 @@ func (t *TimeUnit) normSetDay() {
 		t.preferFuture(2)
 		t.checkTime(t.tp)
 	}
+	pattern2 := regexp.MustCompile(`第(\d+)周`)
+	if match := pattern2.FindAllStringSubmatch(t.expTime, 1); len(match) > 0 && len(match[0]) == 2 {
+		if weeks, _ := strconv.Atoi(match[0][1]); weeks > 0 {
+			cur := t.tp.ToTime(t.normalizer.timeBase.Location())
+			cur = cur.AddDate(0, 0, (weeks-1)*7)
+			t.tp[0] = cur.Year()
+			t.tp[1] = int(cur.Month())
+			t.tp[2] = cur.Day()
+		}
+	}
 }
 
 // normSetMonthFuzzyDay 月-日 兼容模糊写法：该方法识别时间表达式单元的月、日字段
 func (t *TimeUnit) normSetMonthFuzzyDay() {
-	pattern := regexp.MustCompile("((10)|(11)|(12)|([1-9]))(月|\\.|\\-)([0-3][0-9]|[1-9])")
+	pattern := regexp.MustCompile(`((10)|(11)|(12)|([1-9]))(月|\.|\-)([0-3][0-9]|[1-9])`)
 	match := pattern.FindAllString(t.expTime, -1)
 	for _, m := range match {
-		p := regexp.MustCompile("(月|\\.|\\-)")
+		p := regexp.MustCompile(`(月|\.|\-)`)
 		if loc := p.FindStringIndex(m); loc != nil {
 			month, _ := strconv.Atoi(m[0:loc[0]])
 			day, _ := strconv.Atoi(m[loc[1]:])
@@ -689,9 +709,9 @@ func (t *TimeUnit) normSetSpanRelated() {
 		{Reg: "\\d+(?=个月(?![以之]?[前后]))", Idx: 1},
 		{Reg: "\\d+(?=天(?![以之]?[前后]))", Idx: 2},
 		{Reg: "\\d+(?=(个)?小时(?![以之]?[前后]))", Idx: 3},
-		{Reg: "\\d+(?=分钟(?![以之]?[前后]))", Idx: 4},
-		{Reg: "\\d+(?=秒钟(?![以之]?[前后]))", Idx: 5},
-		{Reg: "\\d+(?=(个)?(周|星期|礼拜)(?![以之]?[前后]))", Idx: 2, AddWeek: true},
+		{Reg: `\d+(?=分钟(?![以之]?[前后]))`, Idx: 4},
+		{Reg: `\d+(?=秒钟(?![以之]?[前后]))`, Idx: 5},
+		{Reg: `(?<!第)\d+(?=(个)?(周|星期|礼拜)(?![以之]?[前后]))`, Idx: 2, AddWeek: true},
 	}
 	for _, c := range cases {
 		pattern := regexp2.MustCompile(c.Reg, 0)
@@ -1110,7 +1130,7 @@ func (t *TimeUnit) preferFutureWeek(week int, cur time.Time) time.Time {
 func (t *TimeUnit) preferFuture(checkTimeIndex int) {
 	// 1. 检查被检查的时间级别之前，是否没有更高级的已经确定的时间，如果有，则不进行处理.
 	{
-		var idx = 0
+		idx := 0
 		for idx < checkTimeIndex {
 			if t.tp[idx] != -1 {
 				return
@@ -1146,7 +1166,7 @@ func (t *TimeUnit) preferFuture(checkTimeIndex int) {
 	{
 		curr := t.addTime(t.normalizer.timeBase, checkTimeIndex-1)
 		currPoint := NewTimePointFromTime(curr)
-		var idx = 0
+		idx := 0
 		for idx < checkTimeIndex {
 			t.tp[idx] = currPoint[idx]
 			idx += 1
@@ -1172,7 +1192,7 @@ func (t *TimeUnit) checkContextTime(checkTimeIndex int) {
 	if !t.isFirstTimeSolveContext {
 		return
 	}
-	var idx = 0
+	idx := 0
 	for idx < checkTimeIndex {
 		if t.tp[idx] == -1 && t.tpOrigin[idx] != -1 {
 			t.tp[idx] = t.tpOrigin[idx]

@@ -24,6 +24,15 @@ func NewTimePointFromTime(t time.Time) TimePoint {
 
 // ToTime 转换为time.Time
 func (t TimePoint) ToTime(loc *time.Location) time.Time {
+	for idx, v := range t {
+		if v < 0 {
+			if idx == 2 {
+				t[idx] = 1
+			} else {
+				t[idx] = 0
+			}
+		}
+	}
 	return time.Date(t[0], time.Month(t[1]), t[2], t[3], t[4], t[5], 0, loc)
 }
 
